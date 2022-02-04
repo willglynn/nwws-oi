@@ -93,14 +93,21 @@ async fn run_once(
         };
 
     loop {
-        match conn.next_message().await {
-            Ok(msg) => tx.send(StreamEvent::Message(msg)).await?,
-            Err(e) => {
+        match tokio::time::timeout(Duration::from_secs(180), conn.next_message()).await {
+            Ok(Ok(msg)) => tx.send(StreamEvent::Message(msg)).await?,
+            Ok(Err(e)) => {
                 tx.send(StreamEvent::Error(e)).await?;
                 tx.send(StreamEvent::ConnectionState(ConnectionState::Disconnected))
                     .await?;
                 tokio::task::spawn_local(conn.end());
 
+                return Ok(());
+            }
+            Err(_) => {
+                // Timeout
+                tx.send(StreamEvent::ConnectionState(ConnectionState::Disconnected))
+                    .await?;
+                tokio::task::spawn_local(conn.end());
                 return Ok(());
             }
         }
