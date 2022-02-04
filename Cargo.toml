@@ -1,0 +1,21 @@
+[package]
+name = "nwws-oi"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+thiserror = "1.0"
+tokio-xmpp = "3.1"
+xmpp-parsers = "0.18"
+jid = "0.9"
+futures = "0.3"
+uuid = { version = "0.8", features = ["v4"] }
+chrono = "0.4"
+log = "0.4"
+tokio = { version = "1.16", features = ["sync", "time", "rt"] }
+
+[dev-dependencies]
+env_logger = "0.9"
+tokio = { version = "1.16", features = ["full"] }
