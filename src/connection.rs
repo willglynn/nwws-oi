@@ -2,12 +2,20 @@ use crate::*;
 use futures::{StreamExt, TryStreamExt};
 use log::{debug, error, info, log_enabled, trace, warn, Level};
 
+/// A connection to NWWS-OI.
+///
+/// `Connection` is 1:1 with an underlying XMPP connection. Failures are generally unrecoverable.
+/// Most users will prefer to use [`Stream`](struct.Stream.html) instead.
 pub struct Connection {
     client: tokio_xmpp::SimpleClient,
     leave_message: xmpp_parsers::Element,
 }
 
 impl Connection {
+    /// Connect to NWWS-OI.
+    ///
+    /// `new()` returns `Ok(Connection)` once the XMPP connection is established, authenticated, and
+    /// joined to the NWWS MUC. If any of these steps fail, it returns `Err(Error)`.
     pub async fn new<C: Into<Config>>(config: C) -> Result<Self> {
         let config = config.into();
         let jid = config.jid();
@@ -15,7 +23,7 @@ impl Connection {
             username,
             resource,
             password,
-            room,
+            channel,
             ..
         } = config;
         let nickname = format!("{}/{}", username, resource);
@@ -36,11 +44,11 @@ impl Connection {
         debug!("connected as {}", &jid);
 
         // Build the message to join the MUC
-        let room_jid = room.jid(nickname);
+        let channel_jid = channel.jid(nickname);
         let join_message =
             xmpp_parsers::presence::Presence::new(xmpp_parsers::presence::Type::None)
                 .with_from(jid.clone())
-                .with_to(room_jid.clone())
+                .with_to(channel_jid.clone())
                 .with_payloads(vec![xmpp_parsers::muc::Muc {
                     password: None,
                     history: Some(xmpp_parsers::muc::muc::History {
@@ -51,7 +59,7 @@ impl Connection {
                     }),
                 }
                 .into()]);
-        debug!("joining MUC {}", &room_jid);
+        debug!("joining channel {}", &channel_jid);
 
         // Build the message to leave the MUC
         //   https://xmpp.org/extensions/xep-0045.html#bizrules-presence § 17.3.2
@@ -87,8 +95,8 @@ impl Connection {
         }
 
         info!(
-            "connected to NWWS-OI {} and joined MUC as {}",
-            &jid, &room_jid
+            "connected to NWWS-OI {} and joined channel {}",
+            &jid, &channel_jid
         );
 
         Ok(Self {
@@ -97,6 +105,7 @@ impl Connection {
         })
     }
 
+    /// Terminate the connection as gracefully as possible.
     pub async fn end(self) {
         let mut client = self.client;
 
@@ -109,6 +118,7 @@ impl Connection {
         // Dropping client closes the connection
     }
 
+    /// Receive the next message from NWWS-OI.
     pub async fn next_message(&mut self) -> Result<Message> {
         loop {
             let element = self.client.next().await.ok_or(Error::StreamEnded)??;

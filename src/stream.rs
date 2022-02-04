@@ -3,7 +3,9 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-/// A stream of events from NWWS-OI, with automatic retrying on failure.
+/// A stream of events from NWWS-OI.
+///
+/// `Stream` automatically re-connects if it was disconnected and generally retries on failure.
 pub struct Stream {
     rx: tokio::sync::mpsc::Receiver<StreamEvent>,
 }

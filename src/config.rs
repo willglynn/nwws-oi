@@ -1,10 +1,37 @@
+/// Settings used to connect to the NWWS OI.
+///
+/// # Example
+///
+/// ```rust
+/// let config = nwws_oi::Config::from(("user", "pass"));
+///
+/// assert_eq!(config, nwws_oi::Config {
+///   username: "user".to_string(),
+///   password: "pass".to_string(),
+///   resource: config.resource.clone(),    // assigned randomly
+///   server: nwws_oi::Server::Primary,
+///   channel: nwws_oi::Channel::Default,
+/// });
+///
+/// assert!(config.resource.starts_with("uuid/"));
+/// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Config {
+    /// The username assigned by NWS.
+    ///
+    /// [Sign up](https://www.weather.gov/nwws/nwws_oi_request) to get your own.
     pub username: String,
+    /// The password assigned by NWS.
     pub password: String,
+    /// The XMPP resource used for this connection.
+    ///
+    /// The resource must be unique for your username. If multiple connections attempt to use the
+    /// same resource, they will interfere with each other.
     pub resource: String,
+    /// The destination server.
     pub server: Server,
-    pub room: Room,
+    /// The MUC room which contains NWWS OI messages.
+    pub channel: Channel,
 }
 
 impl Config {
@@ -25,7 +52,7 @@ impl From<(String, String)> for Config {
             password,
             resource: format!("uuid/{}", uuid::Uuid::new_v4()),
             server: Server::Primary,
-            room: Room::Default,
+            channel: Channel::Default,
         }
     }
 }
@@ -38,8 +65,11 @@ impl From<(&str, &str)> for Config {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Server {
+    /// The primary NWWS OI server.
     Primary,
+    /// The backup NWWS OI server.
     Backup,
+    /// A custom hostname.
     Custom(String),
 }
 
@@ -59,21 +89,22 @@ impl Default for Server {
     }
 }
 
+/// An XMPP MUC chat room used for disseminating NWWS messages.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Room {
+pub enum Channel {
     Default,
     Custom(jid::BareJid),
 }
 
-impl Room {
+impl Channel {
     pub(crate) fn jid(&self, nickname: String) -> jid::FullJid {
         match self {
-            Room::Default => jid::FullJid {
+            Channel::Default => jid::FullJid {
                 node: Some("NWWS".into()),
                 domain: "conference.nwws-oi.weather.gov".into(),
                 resource: nickname,
             },
-            Room::Custom(jid) => jid::FullJid {
+            Channel::Custom(jid) => jid::FullJid {
                 node: jid.node.clone(),
                 domain: jid.domain.clone(),
                 resource: nickname,
@@ -82,8 +113,44 @@ impl Room {
     }
 }
 
-impl Default for Room {
+impl Default for Channel {
     fn default() -> Self {
         Self::Default
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn server() {
+        assert_eq!(Server::Primary, Default::default());
+
+        // https://www.weather.gov/nwws/configuration
+        assert_eq!(Server::Primary.hostname(), "nwws-oi.weather.gov");
+        assert_eq!(Server::Backup.hostname(), "nwws-oi-md.weather.gov");
+        assert_eq!(Server::Custom("foo".into()).hostname(), "foo");
+    }
+
+    #[test]
+    fn channel() {
+        assert_eq!(Channel::Default, Default::default());
+
+        assert_eq!(
+            Channel::Default.jid("foo".into()),
+            "NWWS@conference.nwws-oi.weather.gov/foo"
+                .parse::<jid::FullJid>()
+                .unwrap()
+        );
+
+        assert_eq!(
+            Channel::Custom(jid::BareJid {
+                node: Some("bar".into()),
+                domain: "baz".into()
+            })
+            .jid("foo".into()),
+            "bar@baz/foo".parse::<jid::FullJid>().unwrap()
+        );
     }
 }

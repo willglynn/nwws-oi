@@ -6,7 +6,7 @@ mod error;
 mod message;
 mod stream;
 
-pub use config::{Config, Server};
+pub use config::{Channel, Config, Server};
 pub use connection::Connection;
 pub use error::{Error, Result};
 pub use message::Message;

@@ -40,7 +40,7 @@ $ cargo run --example print
     Finished dev [unoptimized + debuginfo] target(s) in 0.05s
      Running `target/debug/examples/print`
 [2022-02-04T01:04:56Z INFO  nwws_oi] connecting to nwws-oi.weather.gov
-[2022-02-04T01:04:59Z INFO  nwws_oi] connected to NWWS-OI x@nwws-oi.weather.gov/uuid/cda49512-b62a-46e9-87a4-1e1dd12b910b and joined MUC as NWWS@conference.nwws-oi.weather.gov/x/uuid/cda49512-b62a-46e9-87a4-1e1dd12b910b
+[2022-02-04T01:04:59Z INFO  nwws_oi] connected to NWWS-OI x@nwws-oi.weather.gov/uuid/cda49512-b62a-46e9-87a4-1e1dd12b910b and joined channel NWWS@conference.nwws-oi.weather.gov/x/uuid/cda49512-b62a-46e9-87a4-1e1dd12b910b
 [2022-02-04T01:05:00Z INFO  print] received Message {
         ttaaii: "SXUS74",
         cccc: "KOUN",
