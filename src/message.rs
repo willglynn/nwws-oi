@@ -101,6 +101,7 @@ impl TryFrom<xmpp_parsers::message::Message> for Message {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Timelike;
 
     fn msg(xml: &str) -> Result<Message, ()> {
         let element: xmpp_parsers::Element = xml.parse().unwrap();
@@ -127,6 +128,23 @@ mod tests {
 
     #[test]
     fn parse_awips() {
+        assert_eq!(
+            msg("<message xmlns=\"jabber:client\" to=\"w.glynn@nwws-oi.weather.gov/uuid/25976f21-a846-4e08-8890-d750a95d96a2\" type=\"groupchat\" from=\"nwws@conference.nwws-oi.weather.gov/nwws-oi\"><body>KLMK issues RRM valid 2022-02-04T02:54:00Z</body><html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body xmlns=\"http://www.w3.org/1999/xhtml\">KLMK issues RRM valid 2022-02-04T02:54:00Z</body></html><x xmlns=\"nwws-oi\" cccc=\"KLMK\" ttaaii=\"SRUS43\" issue=\"2022-02-04T02:54:00Z\" awipsid=\"RRMLMK\" id=\"14425.25117\"><![CDATA[\n\n987\n\nSRUS43 KLMK 040254\n\nRRMLMK\n\n.ER PRSK2 20220203 Z DC202202040254/DUE/DQG/DH17/HGIFE/DIH1/\n\n.E1 15.4/15.6/15.8/16.1/16.5/17.0/17.6/18.1\n\n.E2 18.6/18.8/18.8/18.9/19.2/19.2/19.3/19.3\n\n.E3 19.2/19.2/19.2/19.1/19.0/19.0/18.8/18.7\n\n.E4 18.6/18.4/18.4/18.4/18.4/18.3/18.2/18.1\n\n.E5 18.1/18.0/17.9/17.9/17.9/17.7/17.7/17.6\n\n.E6 17.5/17.6/17.5/17.4/17.3/17.2/17.2/17.0\n\n]]></x><delay xmlns=\"urn:xmpp:delay\" stamp=\"2022-02-04T02:55:11.810Z\" from=\"nwws@conference.nwws-oi.weather.gov/nwws-oi\"/></message>"),
+            Ok(Message {
+                ttaaii: "SRUS43".into(),
+                cccc: "KLMK".into(),
+                awips_id: Some(
+                    "RRMLMK".into()
+                ),
+                issue: chrono::DateTime::from_utc(chrono::NaiveDate::from_ymd(2022, 2, 4).and_hms(2, 54, 0), chrono::FixedOffset::east(0)),
+                id: "14425.25117".into(),
+                delay_stamp: Some(
+                    chrono::DateTime::from_utc(chrono::NaiveDate::from_ymd(2022, 2, 4).and_hms(2, 55, 11).with_nanosecond(810_000_000).unwrap(), chrono::FixedOffset::east(0))
+                ),
+                message: "\n987\nSRUS43 KLMK 040254\nRRMLMK\n.ER PRSK2 20220203 Z DC202202040254/DUE/DQG/DH17/HGIFE/DIH1/\n.E1 15.4/15.6/15.8/16.1/16.5/17.0/17.6/18.1\n.E2 18.6/18.8/18.8/18.9/19.2/19.2/19.3/19.3\n.E3 19.2/19.2/19.2/19.1/19.0/19.0/18.8/18.7\n.E4 18.6/18.4/18.4/18.4/18.4/18.3/18.2/18.1\n.E5 18.1/18.0/17.9/17.9/17.9/17.7/17.7/17.6\n.E6 17.5/17.6/17.5/17.4/17.3/17.2/17.2/17.0\n".into(),
+            })
+        );
+
         assert_eq!(
             msg("<message xmlns=\"jabber:client\" to=\"w.glynn@nwws-oi.weather.gov/uuid/851c737e-ead3-460d-b0a6-6749602fccd9\" type=\"groupchat\" from=\"nwws@conference.nwws-oi.weather.gov/nwws-oi\"><body>PAJK issues RR3 valid 2022-02-04T02:11:00Z</body><html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body xmlns=\"http://www.w3.org/1999/xhtml\">PAJK issues RR3 valid 2022-02-04T02:11:00Z</body></html><x xmlns=\"nwws-oi\" cccc=\"PAJK\" ttaaii=\"SRAK57\" issue=\"2022-02-04T02:11:00Z\" awipsid=\"RR3AJK\" id=\"14425.24041\"><![CDATA[\n\n876\n\nSRAK57 PAJK 040211\n\nRR3AJK\n\nSRAK57 PAJK 040210\n\n\n\n.A NDIA2 220204 Z DH0202/TA 26/TD 27/UD 0/US 0/UG 0/UP 0/PA 29.57\n\n]]></x></message>"),
             Ok(Message {
