@@ -58,30 +58,39 @@ async fn run_once(
     config: Config,
     tx: tokio::sync::mpsc::Sender<StreamEvent>,
 ) -> Result<(), tokio::sync::mpsc::error::SendError<StreamEvent>> {
-    let mut conn = match Connection::new(config).await {
-        Ok(conn) => {
-            tx.send(StreamEvent::ConnectionState(ConnectionState::Connected))
-                .await?;
-            conn
-        }
-        Err(e) => {
-            // Wait a little while or an extra long time before retrying, depending on the cause
-            let duration = match e {
-                Error::Configuration(_) | Error::Credentials(_) => 300,
-                _ => 10,
-            };
+    let mut conn =
+        match tokio::time::timeout(Duration::from_secs(75), Connection::new(config)).await {
+            Ok(Ok(conn)) => {
+                tx.send(StreamEvent::ConnectionState(ConnectionState::Connected))
+                    .await?;
+                conn
+            }
+            Ok(Err(e)) => {
+                // Connecting failed
+                // Wait a little while or an extra long time before retrying, depending on the cause
+                let duration = match e {
+                    Error::Configuration(_) | Error::Credentials(_) => 300,
+                    _ => 10,
+                };
 
-            // Send the error and the disconnect event
-            tx.send(StreamEvent::Error(e)).await?;
-            tx.send(StreamEvent::ConnectionState(ConnectionState::Disconnected))
-                .await?;
+                // Send the error and the disconnect event
+                tx.send(StreamEvent::Error(e)).await?;
+                tx.send(StreamEvent::ConnectionState(ConnectionState::Disconnected))
+                    .await?;
 
-            // Wait
-            tokio::time::sleep(Duration::from_secs(duration)).await;
+                // Wait
+                tokio::time::sleep(Duration::from_secs(duration)).await;
 
-            return Ok(());
-        }
-    };
+                return Ok(());
+            }
+            Err(_) => {
+                // Connection timed out
+                tx.send(StreamEvent::ConnectionState(ConnectionState::Disconnected))
+                    .await?;
+
+                return Ok(());
+            }
+        };
 
     loop {
         match conn.next_message().await {
