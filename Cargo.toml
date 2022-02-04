@@ -1,9 +1,14 @@
 [package]
 name = "nwws-oi"
 version = "0.1.0"
+authors = ["Will Glynn <will@willglynn.com>"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+rust-version = "1.56"
+description = "A client for the NOAA Weather Wire Service Open Interface"
+repository = "https://github.com/willglynn/nwws-oi"
+license = "MIT OR Apache-2.0"
+keywords = ["weather", "noaa", "nwws"]
+categories = ["api-bindings", "science"]
 
 [dependencies]
 thiserror = "1.0"
