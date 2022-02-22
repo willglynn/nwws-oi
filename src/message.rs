@@ -29,6 +29,13 @@ pub struct Message {
     /// See [XEP-0203](https://xmpp.org/extensions/xep-0203.html) for more details.
     pub delay_stamp: Option<chrono::DateTime<chrono::FixedOffset>>,
 
+    /// The LDM sequence number assigned to this product.
+    ///
+    /// [LDM documentation] states that this value is "[i]gnored by almost everything but existing
+    /// due to tradition and history". NWWS OI seems to always prepend such a sequence number to the
+    /// message body; this crate parses it out and places it here.
+    pub ldm_sequence_number: Option<u32>,
+
     /// The contents of the message
     pub message: String,
 }
@@ -75,26 +82,36 @@ impl TryFrom<xmpp_parsers::message::Message> for Message {
             message
         };
 
-        match (
+        // Fish out the LDM sequence number, if any
+        let (ldm_sequence_number, message) = match {
+            let mut i = message.splitn(3, '\n');
+            (i.next(), i.next().and_then(|s| s.parse().ok()), i.next())
+        } {
+            (Some(""), Some(ldm_sequence_number), Some(rest)) => {
+                (Some(ldm_sequence_number), rest.into())
+            }
+            _ => (None, message),
+        };
+
+        return match (
             oi.attr("awipsid"),
             oi.attr("cccc"),
             oi.attr("id"),
             oi.attr("issue").map(chrono::DateTime::parse_from_rfc3339),
             oi.attr("ttaaii"),
         ) {
-            (Some(awipsid), Some(cccc), Some(id), Some(Ok(issue)), Some(ttaaii)) => {
-                return Ok(Self {
-                    awips_id: Some(awipsid).filter(|s| s.len() > 0).map(|s| s.into()),
-                    cccc: cccc.into(),
-                    id: id.into(),
-                    issue,
-                    ttaaii: ttaaii.into(),
-                    delay_stamp,
-                    message,
-                });
-            }
-            _ => return Err(value),
-        }
+            (Some(awipsid), Some(cccc), Some(id), Some(Ok(issue)), Some(ttaaii)) => Ok(Self {
+                awips_id: Some(awipsid).filter(|s| s.len() > 0).map(|s| s.into()),
+                cccc: cccc.into(),
+                id: id.into(),
+                issue,
+                ttaaii: ttaaii.into(),
+                delay_stamp,
+                ldm_sequence_number,
+                message,
+            }),
+            _ => Err(value),
+        };
     }
 }
 
@@ -141,7 +158,8 @@ mod tests {
                 delay_stamp: Some(
                     chrono::DateTime::from_utc(chrono::NaiveDate::from_ymd(2022, 2, 4).and_hms(2, 55, 11).with_nanosecond(810_000_000).unwrap(), chrono::FixedOffset::east(0))
                 ),
-                message: "\n987\nSRUS43 KLMK 040254\nRRMLMK\n.ER PRSK2 20220203 Z DC202202040254/DUE/DQG/DH17/HGIFE/DIH1/\n.E1 15.4/15.6/15.8/16.1/16.5/17.0/17.6/18.1\n.E2 18.6/18.8/18.8/18.9/19.2/19.2/19.3/19.3\n.E3 19.2/19.2/19.2/19.1/19.0/19.0/18.8/18.7\n.E4 18.6/18.4/18.4/18.4/18.4/18.3/18.2/18.1\n.E5 18.1/18.0/17.9/17.9/17.9/17.7/17.7/17.6\n.E6 17.5/17.6/17.5/17.4/17.3/17.2/17.2/17.0\n".into(),
+                ldm_sequence_number: Some(987),
+                message: "SRUS43 KLMK 040254\nRRMLMK\n.ER PRSK2 20220203 Z DC202202040254/DUE/DQG/DH17/HGIFE/DIH1/\n.E1 15.4/15.6/15.8/16.1/16.5/17.0/17.6/18.1\n.E2 18.6/18.8/18.8/18.9/19.2/19.2/19.3/19.3\n.E3 19.2/19.2/19.2/19.1/19.0/19.0/18.8/18.7\n.E4 18.6/18.4/18.4/18.4/18.4/18.3/18.2/18.1\n.E5 18.1/18.0/17.9/17.9/17.9/17.7/17.7/17.6\n.E6 17.5/17.6/17.5/17.4/17.3/17.2/17.2/17.0\n".into(),
             })
         );
 
@@ -154,7 +172,8 @@ mod tests {
                 issue: chrono::DateTime::from_utc(chrono::NaiveDate::from_ymd(2022, 2, 4).and_hms(2, 11, 0), chrono::FixedOffset::east(0)),
                 id: "14425.24041".into(),
                 delay_stamp: None,
-                message: "\n876\nSRAK57 PAJK 040211\nRR3AJK\nSRAK57 PAJK 040210\n\n.A NDIA2 220204 Z DH0202/TA 26/TD 27/UD 0/US 0/UG 0/UP 0/PA 29.57\n".into(),
+                ldm_sequence_number: Some(876),
+                message: "SRAK57 PAJK 040211\nRR3AJK\nSRAK57 PAJK 040210\n\n.A NDIA2 220204 Z DH0202/TA 26/TD 27/UD 0/US 0/UG 0/UP 0/PA 29.57\n".into(),
             }));
 
         assert_eq!(
@@ -166,7 +185,8 @@ mod tests {
                 issue: chrono::DateTime::from_utc(chrono::NaiveDate::from_ymd(2022, 2, 4).and_hms(2, 0, 0), chrono::FixedOffset::east(0)),
                 id: "14425.22838".into(),
                 delay_stamp: None,
-                message: "\n631\nFAUS29 KKCI 040200\nCFP03 \nCCFP 20220204_0200 20220204_0800\nCANADA OFF\n".into()
+                ldm_sequence_number: Some(631),
+                message: "FAUS29 KKCI 040200\nCFP03 \nCCFP 20220204_0200 20220204_0800\nCANADA OFF\n".into()
             }));
     }
 
@@ -181,7 +201,8 @@ mod tests {
                 issue: chrono::DateTime::from_utc(chrono::NaiveDate::from_ymd(2022, 2, 4).and_hms(1, 23, 0), chrono::FixedOffset::east(0)),
                 id: "14425.22800".into(),
                 delay_stamp: None,
-                message: "\n593\nNTXX98 PHEB 040123\nPTWC REDUNDANT-SIDE TEST FROM IRC\nRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZ\nRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZ\n".into(),
+                ldm_sequence_number: Some(593),
+                message: "NTXX98 PHEB 040123\nPTWC REDUNDANT-SIDE TEST FROM IRC\nRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZ\nRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZRZ\n".into(),
             })
         );
     }
