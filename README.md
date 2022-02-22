@@ -34,8 +34,8 @@ while let Some(event) = stream.next().await {
 3. 
 
 ```console
-$ export NWWS_USERNAME=x    # <-- change
-$ export NWWS_PASSWORD=y    # <-- change
+$ export NWWS_OI_USERNAME=x    # <-- change
+$ export NWWS_OI_PASSWORD=y    # <-- change
 $ cargo run --example print
     Finished dev [unoptimized + debuginfo] target(s) in 0.05s
      Running `target/debug/examples/print`
