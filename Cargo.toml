@@ -19,8 +19,8 @@ futures = "0.3"
 uuid = { version = "0.8", features = ["v4"] }
 chrono = "0.4"
 log = "0.4"
-tokio = { version = "1.17", features = ["sync", "time", "rt"] }
+tokio = { version = "1", features = ["sync", "time", "rt"] }
 
 [dev-dependencies]
 env_logger = "0.9"
-tokio = { version = "1.17", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
