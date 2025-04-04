@@ -12,9 +12,9 @@ categories = ["api-bindings", "science"]
 
 [dependencies]
 thiserror = "1.0"
-tokio-xmpp = "3.2"
-xmpp-parsers = "0.19"
-jid = "0.9"
+tokio-xmpp = "4.0"
+xmpp-parsers = "0.21"
+jid = "0.11"
 futures = "0.3"
 uuid = { version = "0.8", features = ["v4"] }
 chrono = "0.4"

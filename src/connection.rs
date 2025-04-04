@@ -7,8 +7,8 @@ use log::{debug, error, info, log_enabled, trace, warn, Level};
 /// `Connection` is 1:1 with an underlying XMPP connection. Failures are generally unrecoverable.
 /// Most users will prefer to use [`Stream`](struct.Stream.html) instead.
 pub struct Connection {
-    client: tokio_xmpp::SimpleClient,
-    leave_message: xmpp_parsers::Element,
+    client: tokio_xmpp::SimpleClient<tokio_xmpp::starttls::ServerConfig>,
+    leave_message: xmpp_parsers::minidom::Element,
 }
 
 impl Connection {
@@ -27,6 +27,7 @@ impl Connection {
             ..
         } = config;
         let nickname = format!("{}/{}", username, resource);
+        let nickname = jid::ResourcePart::new(&nickname).expect("nickname must be valid");
 
         // Connect
         info!("connecting to {}", &config.server.hostname());
@@ -44,7 +45,7 @@ impl Connection {
         debug!("connected as {}", &jid);
 
         // Build the message to join the MUC
-        let channel_jid = channel.jid(nickname);
+        let channel_jid = channel.jid(&nickname);
         let join_message =
             xmpp_parsers::presence::Presence::new(xmpp_parsers::presence::Type::None)
                 .with_from(jid.clone())
@@ -137,7 +138,8 @@ impl Connection {
                     return Ok(msg);
                 }
             } else if element.is("iq", "jabber:client") {
-                let iq = xmpp_parsers::iq::Iq::try_from(element)?;
+                let iq =
+                    xmpp_parsers::iq::Iq::try_from(element).map_err(xmpp_parsers::Error::from)?;
                 self.handle_iq(iq).await?;
             } else if element.is("presence", "jabber:client") {
                 trace!("presence message: {:?}", element);
@@ -175,6 +177,7 @@ impl Connection {
                                 xmpp_parsers::stanza_error::DefinedCondition::ServiceUnavailable,
                             texts: Default::default(),
                             other: None,
+                            alternate_address: None,
                         },
                     ),
                 };

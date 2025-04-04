@@ -97,18 +97,14 @@ pub enum Channel {
 }
 
 impl Channel {
-    pub(crate) fn jid(&self, nickname: String) -> jid::FullJid {
+    pub(crate) fn jid(&self, nickname: &jid::ResourceRef) -> jid::FullJid {
         match self {
-            Channel::Default => jid::FullJid {
-                node: Some("NWWS".into()),
-                domain: "conference.nwws-oi.weather.gov".into(),
-                resource: nickname,
-            },
-            Channel::Custom(jid) => jid::FullJid {
-                node: jid.node.clone(),
-                domain: jid.domain.clone(),
-                resource: nickname,
-            },
+            Channel::Default => jid::FullJid::from_parts(
+                Some(&jid::NodePart::new("NWWS").unwrap()),
+                &jid::DomainPart::new("conference.nwws-oi.weather.gov").unwrap(),
+                nickname,
+            ),
+            Channel::Custom(jid) => jid::FullJid::from_parts(jid.node(), jid.domain(), nickname),
         }
     }
 }
@@ -122,6 +118,7 @@ impl Default for Channel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn server() {
@@ -137,19 +134,17 @@ mod tests {
     fn channel() {
         assert_eq!(Channel::Default, Default::default());
 
+        let foo = jid::ResourcePart::new("foo").unwrap();
+
         assert_eq!(
-            Channel::Default.jid("foo".into()),
+            Channel::Default.jid(&foo),
             "NWWS@conference.nwws-oi.weather.gov/foo"
                 .parse::<jid::FullJid>()
                 .unwrap()
         );
 
         assert_eq!(
-            Channel::Custom(jid::BareJid {
-                node: Some("bar".into()),
-                domain: "baz".into()
-            })
-            .jid("foo".into()),
+            Channel::Custom(jid::BareJid::from_str("bar@baz").unwrap()).jid(&foo),
             "bar@baz/foo".parse::<jid::FullJid>().unwrap()
         );
     }
